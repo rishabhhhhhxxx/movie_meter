@@ -1,8 +1,7 @@
 
-
 import Link from "next/link";
 import DarkModeSwitch from "./DarkModeSwitch";
-
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 export default function Header() {
   return (
     <div className="bg-white dark:bg-black shadow-sm transition-colors duration-300">
@@ -20,9 +19,23 @@ export default function Header() {
           </li>
         </ul>
 
-        {/* Right: Theme Toggle + Logo */}
+        {/* Right: Theme Toggle + Auth + Logo */}
         <div className="flex items-center gap-4">
           <DarkModeSwitch />
+
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+
+          <SignedOut>
+            <Link
+              href="/sign-in"
+              className="text-sm sm:text-base text-blue-500 hover:underline"
+            >
+              Sign in
+            </Link>
+          </SignedOut>
+
           <Link href="/" className="flex gap-2 items-center">
             <div className="bg-amber-500 text-white text-2xl font-bold px-3 py-1 rounded-lg shadow">
               MM

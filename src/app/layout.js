@@ -1,6 +1,7 @@
 import "./globals.css";
 import Header from "@/components/Header";
 import ThemeCom from "@/components/ThemeCom";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata = {
   title: "MovieMeter",
@@ -10,13 +11,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-white dark:bg-black text-gray-800 dark:text-white transition-colors duration-300">
-        <ThemeCom>
-          <Header />
-          {children}
-        </ThemeCom>
-      </body>
+      <ClerkProvider>
+        <body className="bg-white dark:bg-black text-gray-800 dark:text-white transition-colors duration-300">
+          <ThemeCom>
+            <Header />
+            {children}
+          </ThemeCom>
+        </body>
+      </ClerkProvider>
     </html>
   );
 }
-
