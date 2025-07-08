@@ -1,5 +1,6 @@
 import "./globals.css";
 import Header from "@/components/Header";
+import Navbar from "@/components/Navbar";
 import ThemeCom from "@/components/ThemeCom";
 import { ClerkProvider } from "@clerk/nextjs";
 
@@ -15,6 +16,7 @@ export default function RootLayout({ children }) {
         <body className="bg-white dark:bg-black text-gray-800 dark:text-white transition-colors duration-300">
           <ThemeCom>
             <Header />
+            <Navbar/>
             {children}
           </ThemeCom>
         </body>
