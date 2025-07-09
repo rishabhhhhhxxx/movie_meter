@@ -36,7 +36,7 @@ export default function About() {
               We invite you to rate, review, and favorite the movies and shows you
               love. Your ratings and feedback empower fellow users to discover
               hidden gems and enhance our collective movie-watching experience. Enjoy
-              exploring MovieMeter!
+              exploring MovieMeter!!
             </p>
           </div>
         </div>
