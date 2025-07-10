@@ -21,7 +21,7 @@ export default function PaginatedResults({
     const res = await fetch(
       `https://api.themoviedb.org/3${
         genre === "rated" ? "/movie/top_rated" : "/trending/all/week"
-      }?api_key=${process.env.NEXT_PUBLIC_API_KEY}&language=en-US&page=${nextPage}`
+      }?api_key=${process.env.API_KEY}&language=en-US&page=${nextPage}`
     );
     const data = await res.json();
 
