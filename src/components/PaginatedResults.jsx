@@ -12,6 +12,7 @@ export default function PaginatedResults({
   const [page, setPage] = useState(initialPage);
   const [loading, setLoading] = useState(false);
 
+  const API_KEY = process.env.API_KEY;
   const loadMore = async () => {
     if (page >= totalPages || loading) return;
 
@@ -21,7 +22,7 @@ export default function PaginatedResults({
     const res = await fetch(
       `https://api.themoviedb.org/3${
         genre === "rated" ? "/movie/top_rated" : "/trending/all/week"
-      }?api_key=${process.env.API_KEY}&language=en-US&page=${nextPage}`
+      }?api_key=${API_KEY}&language=en-US&page=${nextPage}`
     );
     const data = await res.json();
 
