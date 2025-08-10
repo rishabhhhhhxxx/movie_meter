@@ -53,156 +53,134 @@
 //     return new Response("Error verifying webhook", { status: 400 });
 //   }
 // } 
-// The Final Webhook (e.g., src/app/api/webhooks/clerk/route.js)
 
 // import { Webhook } from 'svix';
 // import { headers } from 'next/headers';
 // import { clerkClient } from '@clerk/nextjs/server';
 // import { NextResponse } from 'next/server';
-// import { createOrUpdateUser, deleteUser } from '@/lib/actions/user'; // Using your actions
+// import { connect } from '@/lib/mongodb/mongoose';
+// import User from '@/lib/models/user.model';
 
 // export async function POST(req) {
 //   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
+//   console.log(WEBHOOK_SECRET);
 //   if (!WEBHOOK_SECRET) {
 //     throw new Error('Please add CLERK_WEBHOOK_SECRET from Clerk Dashboard to your .env file');
 //   }
 
+//   // Get the headers
 //   const headerPayload = headers();
 //   const svix_id = headerPayload.get("svix-id");
 //   const svix_timestamp = headerPayload.get("svix-timestamp");
 //   const svix_signature = headerPayload.get("svix-signature");
 
 //   if (!svix_id || !svix_timestamp || !svix_signature) {
-//     return new Response('Error: Missing svix headers', { status: 400 });
+//     return new Response('Error: Missing required svix headers', { status: 400 });
 //   }
 
-//   const payload = await req.json();
-//   const body = JSON.stringify(payload);
+//   // --- CRITICAL FIX ---
+//   // Read the raw body as text FIRST. Do not parse as JSON yet.
+//   const payload = await req.text();
+//   // --- END OF FIX ---
+
 //   const wh = new Webhook(WEBHOOK_SECRET);
 //   let evt;
 
 //   try {
-//     evt = wh.verify(body, { /* ... headers ... */ });
+//     // Verify the raw body payload against the headers
+//     evt = wh.verify(payload, {
+//       "svix-id": svix_id,
+//       "svix-timestamp": svix_timestamp,
+//       "svix-signature": svix_signature,
+//     });
 //   } catch (err) {
 //     console.error('Error verifying webhook:', err.message);
 //     return new Response('Error: Invalid webhook signature', { status: 400 });
 //   }
 
+//   // We have a verified event. Now we can safely work with it.
 //   const eventType = evt.type;
-//   const { id } = evt.data;
+  
+//   if (eventType === 'user.created') {
+//     // evt.data is already a parsed JSON object
+//     const { id, email_addresses, image_url, first_name, last_name, username } = evt.data;
 
-//   // --- HANDLE USER CREATION / UPDATE ---
-//   if (eventType === 'user.created' || eventType === 'user.updated') {
-//     const { first_name, last_name, image_url, email_addresses } = evt.data;
 //     try {
-//       const user = await createOrUpdateUser(id, first_name, last_name, image_url, email_addresses);
+//       await connect();
+//       const newUser = await User.create({
+//         clerkId: id,
+//         email: email_addresses[0].email_address,
+//         username: username || email_addresses[0].email_address.split('@')[0],
+//         firstName: first_name,
+//         lastName: last_name,
+//         photo: image_url,
+//       });
 
-//       // If a new user was created, update their Clerk metadata
-//       if (user && eventType === 'user.created') {
-//         await clerkClient.users.updateUserMetadata(id, {
-//           publicMetadata: { userId: user._id.toString() },
-//         });
+//       if (!newUser) {
+//         throw new Error('Failed to create new user in database.');
 //       }
-//       return NextResponse.json({ message: 'User processed', user: user });
+      
+//       await clerkClient.users.updateUserMetadata(id, {
+//         publicMetadata: { userId: newUser._id.toString() },
+//       });
+      
+//       return NextResponse.json({ message: 'User created successfully' });
 //     } catch (error) {
-//       console.error("Error processing user creation/update:", error);
-//       return new Response('Error processing user', { status: 500 });
-//     }
-//   }
-
-//   // --- HANDLE USER DELETION ---
-//   if (eventType === 'user.deleted') {
-//     try {
-//       await deleteUser(id);
-//       return NextResponse.json({ message: 'User deleted' });
-//     } catch (error) {
-//       console.error("Error processing user deletion:", error);
-//       return new Response('Error processing user deletion', { status: 500 });
+//       console.error("CRITICAL ERROR in user.created handler:", error);
+//       return new Response('Error: An internal error occurred while processing the user.', { status: 500 });
 //     }
 //   }
 
 //   return new Response('', { status: 200 });
 // }
+import { verifyWebhook } from "@clerk/nextjs/webhooks";
+import { clerkClient } from "@clerk/nextjs/server";
+import { connect } from "@/lib/mongodb/mongoose";
+import User from "@/lib/models/user.model";
 
-// The Definitive, Corrected Webhook (e.g., src/app/api/webhooks/clerk/route.js)
-
-// The Final, Definitive Webhook (e.g., src/app/api/webhooks/clerk/route.js)
-
-import { Webhook } from 'svix';
-import { headers } from 'next/headers';
-import { clerkClient } from '@clerk/nextjs/server';
-import { NextResponse } from 'next/server';
-import { connect } from '@/lib/mongodb/mongoose';
-import User from '@/lib/models/user.model';
-
+// Update this path based on your app architecture
 export async function POST(req) {
-  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
-  if (!WEBHOOK_SECRET) {
-    throw new Error('Please add CLERK_WEBHOOK_SECRET from Clerk Dashboard to your .env file');
-  }
-
-  // Get the headers
-  const headerPayload = headers();
-  const svix_id = headerPayload.get("svix-id");
-  const svix_timestamp = headerPayload.get("svix-timestamp");
-  const svix_signature = headerPayload.get("svix-signature");
-
-  if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Error: Missing required svix headers', { status: 400 });
-  }
-
-  // --- CRITICAL FIX ---
-  // Read the raw body as text FIRST. Do not parse as JSON yet.
-  const payload = await req.text();
-  // --- END OF FIX ---
-
-  const wh = new Webhook(WEBHOOK_SECRET);
-  let evt;
-
   try {
-    // Verify the raw body payload against the headers
-    evt = wh.verify(payload, {
-      "svix-id": svix_id,
-      "svix-timestamp": svix_timestamp,
-      "svix-signature": svix_signature,
+    const evt = await verifyWebhook({
+      request: req,
+      secret: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
     });
-  } catch (err) {
-    console.error('Error verifying webhook:', err.message);
-    return new Response('Error: Invalid webhook signature', { status: 400 });
-  }
 
-  // We have a verified event. Now we can safely work with it.
-  const eventType = evt.type;
-  
-  if (eventType === 'user.created') {
-    // evt.data is already a parsed JSON object
-    const { id, email_addresses, image_url, first_name, last_name, username } = evt.data;
+    const { id: clerkId, first_name, last_name, image_url, email_addresses } = evt.data;
+    const eventType = evt.type;
 
-    try {
-      await connect();
-      const newUser = await User.create({
-        clerkId: id,
-        email: email_addresses[0].email_address,
-        username: username || email_addresses[0].email_address.split('@')[0],
-        firstName: first_name,
-        lastName: last_name,
-        photo: image_url,
-      });
+    await connect();
 
-      if (!newUser) {
-        throw new Error('Failed to create new user in database.');
+    if (eventType === "user.created" || eventType === "user.updated") {
+      const email = email_addresses?.[0]?.email_address || "";
+
+      const user = await User.findOneAndUpdate(
+        { clerkId },
+        {
+          $set: {
+            firstName: first_name,
+            lastName: last_name,
+            profilePicture: image_url,
+            email,
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+      if (eventType === "user.created") {
+        await clerkClient.users.updateUserMetadata(clerkId, {
+          publicMetadata: { userMongoId: user._id.toString() },
+        });
       }
-      
-      await clerkClient.users.updateUserMetadata(id, {
-        publicMetadata: { userId: newUser._id.toString() },
-      });
-      
-      return NextResponse.json({ message: 'User created successfully' });
-    } catch (error) {
-      console.error("CRITICAL ERROR in user.created handler:", error);
-      return new Response('Error: An internal error occurred while processing the user.', { status: 500 });
     }
-  }
 
-  return new Response('', { status: 200 });
+    if (eventType === "user.deleted") {
+      await User.findOneAndDelete({ clerkId });
+    }
+
+    return new Response("Webhook processed", { status: 200 });
+  } catch (error) {
+    console.error("❌ Webhook error:", error);
+    return new Response("Invalid webhook", { status: 400 });
+  }
 }
