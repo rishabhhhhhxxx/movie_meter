@@ -130,7 +130,7 @@
 
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
-import { clerkClient } from '@nextjs/server';
+import { clerkClient } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { connect } from '@/lib/mongodb/mongoose';
 import User from '@/lib/models/user.model';
