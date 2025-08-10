@@ -183,17 +183,23 @@ export async function POST(req) {
     // Extract needed data from Clerk's webhook payload
     const { id, email_addresses, first_name, last_name } = payload.data;
 
-    const email = email_addresses?.[0]?.email_address || null;
+    // Only store email if not null
+    const email = email_addresses?.[0]?.email_address || undefined;
 
-    // Create or update user in MongoDB
+    const updateData = {
+      clerkId: id,
+      firstName: first_name || "",
+      lastName: last_name || "",
+    };
+
+    // Only add email if it exists
+    if (email) {
+      updateData.email = email;
+    }
+
     await User.findOneAndUpdate(
       { clerkId: id },
-      {
-        clerkId: id,
-        email,
-        firstName: first_name || "",
-        lastName: last_name || "",
-      },
+      updateData,
       { upsert: true, new: true }
     );
 
