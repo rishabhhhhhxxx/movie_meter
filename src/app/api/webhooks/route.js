@@ -134,7 +134,7 @@ import { connect } from '@/lib/mongodb/mongoose';
 import User from '@/lib/models/user.model';
 
 export async function POST(req) {
-  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
+  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
   if (!WEBHOOK_SECRET) {
     throw new Error('Please add CLERK_WEBHOOK_SECRET from Clerk Dashboard to your .env file');
   }
