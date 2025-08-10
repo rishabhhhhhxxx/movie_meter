@@ -135,10 +135,8 @@
 // }
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { clerkClient } from "@clerk/nextjs/server";
-import { connect } from "@/lib/mongodb/mongoose";
-import User from "@/lib/models/user.model";
 
-// Update this path based on your app architecture
+
 export async function POST(req) {
   try {
     const evt = await verifyWebhook({
@@ -146,41 +144,29 @@ export async function POST(req) {
       secret: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
     });
 
-    const { id: clerkId, first_name, last_name, image_url, email_addresses } = evt.data;
-    const eventType = evt.type;
+    const { data, type, id: clerkId } = evt;
 
-    await connect();
-
-    if (eventType === "user.created" || eventType === "user.updated") {
-      const email = email_addresses?.[0]?.email_address || "";
-
+    // Handle user created/updated/deleted
+    if (type === "user.created" || type === "user.updated") {
+      await connect();
       const user = await User.findOneAndUpdate(
         { clerkId },
-        {
-          $set: {
-            firstName: first_name,
-            lastName: last_name,
-            profilePicture: image_url,
-            email,
-          },
-        },
+        { /* update fields */ },
         { upsert: true, new: true }
       );
 
-      if (eventType === "user.created") {
+      if (type === "user.created") {
         await clerkClient.users.updateUserMetadata(clerkId, {
           publicMetadata: { userMongoId: user._id.toString() },
         });
       }
-    }
-
-    if (eventType === "user.deleted") {
+    } else if (type === "user.deleted") {
       await User.findOneAndDelete({ clerkId });
     }
 
     return new Response("Webhook processed", { status: 200 });
   } catch (error) {
-    console.error("❌ Webhook error:", error);
+    console.error("Webhook error:", error);
     return new Response("Invalid webhook", { status: 400 });
   }
 }
