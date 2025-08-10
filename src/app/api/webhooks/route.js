@@ -133,40 +133,75 @@
 
 //   return new Response('', { status: 200 });
 // }
-import { verifyWebhook } from "@clerk/nextjs/webhooks";
-import { clerkClient } from "@clerk/nextjs/server";
+// import { verifyWebhook } from "@clerk/nextjs/webhooks";
+// import { clerkClient } from "@clerk/nextjs/server";
 
+
+// export async function POST(req) {
+//   try {
+//     const evt = await verifyWebhook({
+//       request: req,
+//       secret: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
+//     });
+
+//     const { data, type, id: clerkId } = evt;
+
+//     // Handle user created/updated/deleted
+//     if (type === "user.created" || type === "user.updated") {
+//       await connect();
+//       const user = await User.findOneAndUpdate(
+//         { clerkId },
+//         { /* update fields */ },
+//         { upsert: true, new: true }
+//       );
+
+//       if (type === "user.created") {
+//         await clerkClient.users.updateUserMetadata(clerkId, {
+//           publicMetadata: { userMongoId: user._id.toString() },
+//         });
+//       }
+//     } else if (type === "user.deleted") {
+//       await User.findOneAndDelete({ clerkId });
+//     }
+
+//     return new Response("Webhook processed", { status: 200 });
+//   } catch (error) {
+//     console.error("Webhook error:", error);
+//     return new Response("Invalid webhook", { status: 400 });
+//   }
+// }
+// app/api/webhooks/route.js
+import { connect } from "@/lib/mongodb/mongoose";
+import User from "@/lib/models/user.model";
 
 export async function POST(req) {
   try {
-    const evt = await verifyWebhook({
-      request: req,
-      secret: process.env.CLERK_WEBHOOK_SIGNING_SECRET,
-    });
+    await connect();
 
-    const { data, type, id: clerkId } = evt;
+    const payload = await req.json();
 
-    // Handle user created/updated/deleted
-    if (type === "user.created" || type === "user.updated") {
-      await connect();
-      const user = await User.findOneAndUpdate(
-        { clerkId },
-        { /* update fields */ },
-        { upsert: true, new: true }
-      );
+    // Extract needed data from Clerk's webhook payload
+    const { id, email_addresses, first_name, last_name } = payload.data;
 
-      if (type === "user.created") {
-        await clerkClient.users.updateUserMetadata(clerkId, {
-          publicMetadata: { userMongoId: user._id.toString() },
-        });
-      }
-    } else if (type === "user.deleted") {
-      await User.findOneAndDelete({ clerkId });
-    }
+    const email = email_addresses?.[0]?.email_address || null;
 
-    return new Response("Webhook processed", { status: 200 });
+    // Create or update user in MongoDB
+    await User.findOneAndUpdate(
+      { clerkId: id },
+      {
+        clerkId: id,
+        email,
+        firstName: first_name || "",
+        lastName: last_name || "",
+      },
+      { upsert: true, new: true }
+    );
+
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (error) {
-    console.error("Webhook error:", error);
-    return new Response("Invalid webhook", { status: 400 });
+    console.error("Webhook DB error:", error);
+    return new Response(JSON.stringify({ error: "Failed to store webhook" }), {
+      status: 500,
+    });
   }
 }
