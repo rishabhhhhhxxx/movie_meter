@@ -78,14 +78,81 @@
 // }
 // src/app/page.js
 
+// import { connect } from '@/lib/mongodb/mongoose';
+// import HomePageContent from '@/lib/models/homePageContent.model';
+
+// export const dynamic = 'force-dynamic';
+
+// export default async function Home() {
+//   await connect();
+//   const homepageData = await HomePageContent.findOne({ updatedBy: 'github-actions' }).lean();
+
+//   if (!homepageData || !homepageData.sections || homepageData.sections.length === 0) {
+//     return (
+//       <main className="flex items-center justify-center min-h-screen">
+//         <div className="text-center">
+//           <h1 className="text-3xl font-bold">Welcome!</h1>
+//           <p className="text-lg mt-2">Our AI is generating fresh content. Please check back in a moment.</p>
+//         </div>
+//       </main>
+//     );
+//   }
+
+//   return (
+//     <div className="max-w-5xl mx-auto px-4 py-8">
+//       {/* Main Page Title */}
+//       <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-12 bg-gradient-to-r from-purple-500 to-amber-500 bg-clip-text text-transparent">
+//         {homepageData.mainTitle}
+//       </h1>
+
+//       {/* Loop Through and Display Each AI-Generated Section */}
+//       <div className="space-y-16">
+//         {homepageData.sections.map((section, index) => (
+//           <section key={index}>
+//             <h2 className="text-3xl font-bold mb-4 border-b-2 border-amber-500 pb-2">
+//               {section.title}
+//             </h2>
+//             <div
+//               className="prose prose-invert max-w-none text-lg text-gray-300 leading-relaxed"
+//               dangerouslySetInnerHTML={{ __html: section.description }}
+//             />
+//           </section>
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }
+// src/app/page.js
+
 import { connect } from '@/lib/mongodb/mongoose';
 import HomePageContent from '@/lib/models/homePageContent.model';
+import Results from '@/components/Results'; // We are adding this back
 
 export const dynamic = 'force-dynamic';
+const API_KEY = process.env.API_KEY; // Make sure API_KEY is in your .env and production environment variables
+
+async function fetchTrendingForGrid() {
+  try {
+    if (!API_KEY) throw new Error('API Key not found for trending grid');
+    const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${API_KEY}&language=en-US&page=1`);
+    if (!res.ok) throw new Error('Failed to fetch trending movies for grid');
+    const data = await res.json();
+    return data.results;
+  } catch (error) {
+    console.error(error.message);
+    return []; // Return empty array on failure
+  }
+}
 
 export default async function Home() {
+  // Connect to DB once
   await connect();
-  const homepageData = await HomePageContent.findOne({ updatedBy: 'github-actions' }).lean();
+  
+  // Fetch both the AI content and the trending movies list at the same time
+  const [homepageData, trendingMovies] = await Promise.all([
+    HomePageContent.findOne({ updatedBy: 'github-actions' }).lean(),
+    fetchTrendingForGrid()
+  ]);
 
   if (!homepageData || !homepageData.sections || homepageData.sections.length === 0) {
     return (
@@ -99,7 +166,7 @@ export default async function Home() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Main Page Title */}
       <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-12 bg-gradient-to-r from-purple-500 to-amber-500 bg-clip-text text-transparent">
         {homepageData.mainTitle}
@@ -118,6 +185,19 @@ export default async function Home() {
             />
           </section>
         ))}
+      </div>
+
+      {/* A visual divider */}
+      <hr className="my-16 border-gray-700" />
+
+      {/* The grid of trending movie posters at the bottom */}
+      <div>
+        <h2 className="text-3xl font-bold mb-8 text-center">Top Trending This Week</h2>
+        {trendingMovies.length > 0 ? (
+          <Results results={trendingMovies} />
+        ) : (
+          <p className="text-center">Could not load trending movie grid.</p>
+        )}
       </div>
     </div>
   );
