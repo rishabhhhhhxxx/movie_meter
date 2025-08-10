@@ -2,14 +2,18 @@
   "name": "movie_app",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate-homepage-content": "node src/generateHomePageContentRunner.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.23.2",
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.2.1",
     "mongodb": "^6.17.0",
     "mongoose": "^8.16.1",
     "next": "^15.2.3",
