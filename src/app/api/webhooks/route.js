@@ -126,9 +126,11 @@
 
 // The Definitive, Corrected Webhook (e.g., src/app/api/webhooks/clerk/route.js)
 
+// The Final, Definitive Webhook (e.g., src/app/api/webhooks/clerk/route.js)
+
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
-import { clerkClient } from '@clerk/nextjs/server';
+import { clerkClient } from '@nextjs/server';
 import { NextResponse } from 'next/server';
 import { connect } from '@/lib/mongodb/mongoose';
 import User from '@/lib/models/user.model';
@@ -145,49 +147,39 @@ export async function POST(req) {
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
 
-  // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Error: Missing required svix headers', {
-      status: 400
-    });
+    return new Response('Error: Missing required svix headers', { status: 400 });
   }
 
-  // Read the raw request body
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
+  // --- CRITICAL FIX ---
+  // Read the raw body as text FIRST. Do not parse as JSON yet.
+  const payload = await req.text();
+  // --- END OF FIX ---
 
-  // Create a new Svix instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET);
   let evt;
 
-  // Verify the payload with the headers
   try {
-    evt = wh.verify(body, {
+    // Verify the raw body payload against the headers
+    evt = wh.verify(payload, {
       "svix-id": svix_id,
       "svix-timestamp": svix_timestamp,
       "svix-signature": svix_signature,
     });
   } catch (err) {
-    console.error('Error verifying webhook:', err);
-    return new Response('Error: Webhook verification failed', {
-      status: 400
-    });
+    console.error('Error verifying webhook:', err.message);
+    return new Response('Error: Invalid webhook signature', { status: 400 });
   }
 
-  // We have a verified event. Now we can process it.
+  // We have a verified event. Now we can safely work with it.
   const eventType = evt.type;
-
+  
   if (eventType === 'user.created') {
+    // evt.data is already a parsed JSON object
     const { id, email_addresses, image_url, first_name, last_name, username } = evt.data;
-
-    // Basic validation
-    if (!id || !email_addresses || email_addresses.length === 0) {
-        return new Response('Error: Missing required data in webhook payload', { status: 400 });
-    }
 
     try {
       await connect();
-
       const newUser = await User.create({
         clerkId: id,
         email: email_addresses[0].email_address,
@@ -201,19 +193,11 @@ export async function POST(req) {
         throw new Error('Failed to create new user in database.');
       }
       
-      console.log(`Successfully created user in MongoDB: ${newUser._id}`);
-
-      // Update Clerk user's metadata with their new MongoDB ID
       await clerkClient.users.updateUserMetadata(id, {
-        publicMetadata: {
-          userId: newUser._id.toString(),
-        },
+        publicMetadata: { userId: newUser._id.toString() },
       });
       
-      console.log(`Successfully updated Clerk metadata for user: ${id}`);
-      
-      return NextResponse.json({ message: 'User created and metadata updated successfully', user: newUser });
-
+      return NextResponse.json({ message: 'User created successfully' });
     } catch (error) {
       console.error("CRITICAL ERROR in user.created handler:", error);
       return new Response('Error: An internal error occurred while processing the user.', { status: 500 });
