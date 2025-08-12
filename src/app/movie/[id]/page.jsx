@@ -46,14 +46,14 @@
 //             <span className='font-semibold mr-1'>Rating:</span>
 //             {movie.vote_count}
 //           </p>
-//           <AddToFav
-//             movieId={movieId}
-//             title={movie.title || movie.name}
-//             image={movie.backdrop_path || movie.poster_path}
-//             overview={movie.overview}
-//             releaseDate={movie.release_date || movie.first_air_date}
-//             voteCount={movie.vote_count}
-//           />
+          // <AddToFav
+          //   movieId={movieId}
+          //   title={movie.title || movie.name}
+          //   image={movie.backdrop_path || movie.poster_path}
+          //   overview={movie.overview}
+          //   releaseDate={movie.release_date || movie.first_air_date}
+          //   voteCount={movie.vote_count}
+          // />
 //         </div>
 //       </div>
 //     </div>
@@ -250,7 +250,14 @@ export default async function MoviePage({ params }) {
               <p className='text-md italic text-gray-300'>{vibeCheckText}</p>
             </div>
           )}
-          <div className='mt-6'><AddToFav movieId={params.id} title={movie.title || movie.name} /* ... other props */ /></div>
+          <div className='mt-6'><AddToFav
+            movieId={movie.id}
+            title={movie.title || movie.name}
+            image={movie.backdrop_path || movie.poster_path}
+            overview={movie.overview}
+            releaseDate={movie.release_date || movie.first_air_date}
+            voteCount={movie.vote_count}
+          /></div>
         </div>
       </div>
       
